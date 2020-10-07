@@ -511,7 +511,6 @@ class GromacsInterface(object):
                 #    bonds = []
                 #    bondsh = [[0, 1], [0, 2], [1, 2]]
                 molecule.pop("atom_indices")
-            import pdb; pdb.set_trace()
 
         return molecules
 
