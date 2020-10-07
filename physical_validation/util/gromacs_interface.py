@@ -332,80 +332,186 @@ class GromacsInterface(object):
             topology["defaults"]["atomtypes"][code] = atomtype
 
         molecules = []
-        for line in topology["system"]["molecules"]:
-            molecule = line.split()[0]
-            nmolecs = int(line.split()[1])
-            natoms = len(topology[molecule]["atoms"])
-
-            masses = []
-            for atom in topology[molecule]["atoms"]:
-                if len(atom.split()) >= 8:
-                    masses.append(float(atom.split()[7]))
-                else:
-                    code = atom.split()[1]
-                    masses.append(
-                        float(topology["defaults"]["atomtypes"][code].split()[3])
-                    )
-
-            nbonds = 0
-            nbondsh = 0
-            bonds = []
-            bondsh = []
-            if "bonds" in topology[molecule]:
-                for bond in topology[molecule]["bonds"]:
-                    bond = bond.split()
-                    a1 = int(bond[0]) - 1
-                    a2 = int(bond[1]) - 1
-                    m1 = masses[a1]
-                    m2 = masses[a2]
-                    if m1 > 1.008 and m2 > 1.008:
-                        nbonds += 1
-                        bonds.append([a1, a2])
+        try:
+            topology["system"]["molecules"]
+            for line in topology["system"]["molecules"]:
+                molecule = line.split()[0]
+                nmolecs = int(line.split()[1])
+                natoms = len(topology[molecule]["atoms"])
+                masses = []
+                for atom in topology[molecule]["atoms"]:
+                    if len(atom.split()) >= 8:
+                        masses.append(float(atom.split()[7]))
                     else:
-                        nbondsh += 1
-                        bondsh.append([a1, a2])
+                        code = atom.split()[1]
+                        masses.append(
+                            float(topology["defaults"]["atomtypes"][code].split()[3])
+                        )
 
-            nangles = 0
-            nanglesh = 0
-            angles = []
-            anglesh = []
-            if "angles" in topology[molecule]:
-                for angle in topology[molecule]["angles"]:
-                    angle = angle.split()
-                    a1 = int(angle[0]) - 1
-                    a2 = int(angle[1]) - 1
-                    a3 = int(angle[2]) - 1
-                    m1 = masses[a1]
-                    m2 = masses[a2]
-                    m3 = masses[a3]
-                    if m1 > 1.008 and m2 > 1.008 and m3 > 1.008:
-                        nangles += 1
-                        angles.append([a1, a2, a3])
-                    else:
-                        nanglesh += 1
-                        anglesh.append([a1, a2, a3])
-
-            settle = False
-            if "settles" in topology[molecule]:
-                settle = True
+                nbonds = 0
+                nbondsh = 0
                 bonds = []
-                bondsh = [[0, 1], [0, 2], [1, 2]]
+                bondsh = []
+                if "bonds" in topology[molecule]:
+                    for bond in topology[molecule]["bonds"]:
+                        bond = bond.split()
+                        a1 = int(bond[0]) - 1
+                        a2 = int(bond[1]) - 1
+                        m1 = masses[a1]
+                        m2 = masses[a2]
+                        if m1 > 1.008 and m2 > 1.008:
+                            nbonds += 1
+                            bonds.append([a1, a2])
+                        else:
+                            nbondsh += 1
+                            bondsh.append([a1, a2])
 
-            molecules.append(
-                {
-                    "name": molecule,
-                    "nmolecs": nmolecs,
-                    "natoms": natoms,
-                    "mass": masses,
-                    "nbonds": [nbonds, nbondsh],
-                    "bonds": bonds,
-                    "bondsh": bondsh,
-                    "nangles": [nangles, nanglesh],
-                    "angles": angles,
-                    "anglesh": anglesh,
-                    "settles": settle,
-                }
-            )
+                nangles = 0
+                nanglesh = 0
+                angles = []
+                anglesh = []
+                if "angles" in topology[molecule]:
+                    for angle in topology[molecule]["angles"]:
+                        angle = angle.split()
+                        a1 = int(angle[0]) - 1
+                        a2 = int(angle[1]) - 1
+                        a3 = int(angle[2]) - 1
+                        m1 = masses[a1]
+                        m2 = masses[a2]
+                        m3 = masses[a3]
+                        if m1 > 1.008 and m2 > 1.008 and m3 > 1.008:
+                            nangles += 1
+                            angles.append([a1, a2, a3])
+                        else:
+                            nanglesh += 1
+                            anglesh.append([a1, a2, a3])
+
+                settle = False
+                if "settles" in topology[molecule]:
+                    settle = True
+                    bonds = []
+                    bondsh = [[0, 1], [0, 2], [1, 2]]
+
+                molecules.append(
+                    {
+                        "name": molecule,
+                        "nmolecs": nmolecs,
+                        "natoms": natoms,
+                        "mass": masses,
+                        "nbonds": [nbonds, nbondsh],
+                        "bonds": bonds,
+                        "bondsh": bondsh,
+                        "nangles": [nangles, nanglesh],
+                        "angles": angles,
+                        "anglesh": anglesh,
+                        "settles": settle,
+                    }
+                )
+
+        except KeyError:
+            # When `combine='all'` is used in ParmEd
+            molecule_lines = topology["system"]["atoms"]
+            atoms_dict = dict()
+            for line in molecule_lines:
+                split = line.split()
+                if len(split) != 8:
+                    continue
+                if split[3] in atoms_dict.keys():
+                    atoms_dict[split[3]].append(split)
+                else:
+                    atoms_dict[split[3]] = []
+                    atoms_dict[split[3]].append(split)
+
+            for key, value in atoms_dict.items():
+                molecule = key
+                atomids = []
+                resids = []
+                masses = []
+                for line in value:
+                    atomids.append(int(line[0])-1)
+                    resids.append(int(line[2]))
+                    masses.append(float(line[7]))
+                natoms = len(atomids)
+                nmolecs = len(np.unique(np.array(resids)))
+                molec_dict = {"name": molecule,
+                              "nmolecs": nmolecs,
+                              "natoms": natoms,
+                              "mass": masses,
+                              "atom_indices": atomids,
+                             }
+                molecules.append(molec_dict)
+
+            #for molecule in molecules:
+            bonds = []
+            for bond in topology["system"]["bonds"]:
+                bond = bond.split()
+                a1 = int(bond[0]) - 1
+                a2 = int(bond[1]) - 1
+                bonds.append([a1, a2])
+
+            angles = []
+            for angle in topology["system"]["angles"]:
+                angle = angle.split()
+                a1 = int(angle[0]) - 1
+                a2 = int(angle[1]) - 1
+                a3 = int(angle[2]) - 1
+                angles.append([a1, a2, a3])
+
+            for molecule in molecules:
+                molec_bonds = []
+                bondsh = []
+                nbonds = 0
+                nbondsh = 0
+                for bond in bonds:
+                    if bond[0] in molecule["atom_indices"] and bond[1] in molecule["atom_indices"]:
+                        index1 = molecule["atom_indices"].index(bond[0])
+                        index2 = molecule["atom_indices"].index(bond[1])
+                        m1 = molecule["mass"][index1]
+                        m2 = molecule["mass"][index2]
+                        if m1 > 1.008 and m2 > 1.008:
+                            nbonds += 1
+                            molec_bonds.append(bond)
+                        else:
+                            nbondsh += 1
+                            bondsh.append(bond)
+
+                molecule["nbonds"] = [nbonds, nbondsh]
+                molecule["bonds"] = molec_bonds
+                molecule["bondsh"] = bondsh
+
+                molec_angles = []
+                anglesh = []
+                nangles = 0
+                nanglesh = 0
+
+                for angle in angles:
+                    if angle[0] in molecule["atom_indices"] and angle[1] in molecule["atom_indices"] and angle[2] in molecule["atom_indices"]:
+                        index1 = molecule["atom_indices"].index(angle[0])
+                        index2 = molecule["atom_indices"].index(angle[1])
+                        index3 = molecule["atom_indices"].index(angle[2])
+                        m1 = molecule["mass"][index1]
+                        m2 = molecule["mass"][index2]
+                        m3 = molecule["mass"][index3]
+                        if m1 > 1.008 and m2 > 1.008 and m3 > 1.008:
+                            nangles += 1
+                            molec_angles.append(angle)
+                        else:
+                            nanglesh += 1
+                            anglesh.append(angle)
+
+                molecule["nangles"] = [nangles, nanglesh]
+                molecule["angles"] = molec_angles
+                molecule["angleh"] = anglesh
+
+                # TODO: Handle settles
+                molecule["settles"] = False
+                #settle = False
+                #if "settles" in topology[molecule]:
+                #    settle = True
+                #    bonds = []
+                #    bondsh = [[0, 1], [0, 2], [1, 2]]
+                molecule.pop("atom_indices")
+            import pdb; pdb.set_trace()
 
         return molecules
 
