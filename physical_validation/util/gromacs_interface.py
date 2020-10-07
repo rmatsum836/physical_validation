@@ -431,8 +431,8 @@ class GromacsInterface(object):
                     atomids.append(int(line[0])-1)
                     resids.append(int(line[2]))
                     masses.append(float(line[7]))
-                natoms = len(atomids)
                 nmolecs = len(np.unique(np.array(resids)))
+                natoms = len(atomids) / nmolecs
                 molec_dict = {"name": molecule,
                               "nmolecs": nmolecs,
                               "natoms": natoms,
@@ -457,7 +457,10 @@ class GromacsInterface(object):
                 a3 = int(angle[2]) - 1
                 angles.append([a1, a2, a3])
 
-            for molecule in molecules:
+            for molid, molecule in enumerate(molecules):
+                #if molid != 0:
+                #    # Reset bond and angle indices to 0
+                #    
                 molec_bonds = []
                 bondsh = []
                 nbonds = 0
@@ -510,7 +513,9 @@ class GromacsInterface(object):
                 #    settle = True
                 #    bonds = []
                 #    bondsh = [[0, 1], [0, 2], [1, 2]]
-                molecule.pop("atom_indices")
+
+                #molecule.pop("atom_indices")
+                #molecule["mass"] = molecule["mass"][:int(molecule["natoms"])]
 
         return molecules
 

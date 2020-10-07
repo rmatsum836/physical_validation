@@ -225,6 +225,7 @@ class GromacsParser(parser.Parser):
                 for n in range(0, molecule["nmolecs"]):
                     molecule_idx.append(next_molec)
                     next_molec += molecule["natoms"]
+                    #next_molec += int(molecule["natoms"] / molecule["nmolecs"])
                 mass.extend(molecule["mass"] * molecule["nmolecs"])
                 constraints = 0
                 constrained_bonds = []
